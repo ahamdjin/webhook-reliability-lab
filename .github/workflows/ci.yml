@@ -1,0 +1,86 @@
+name: Test the Streamlit + Postman lab
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  python:
+    name: Python ${{ matrix.python-version }} / API / UI
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+      - run: python -m pip install -r requirements-dev.txt
+      - run: python -m pip check
+      - run: python -m compileall -q app.py streamlit_app.py reliability_lab tests
+      - name: API, engine, and Postman asset tests
+        run: python -m pytest -q
+      - name: Streamlit UI smoke test
+        run: |
+          python - <<'PY'
+          from streamlit.testing.v1 import AppTest
+          test = AppTest.from_file("streamlit_app.py").run(timeout=30)
+          assert len(test.exception) == 0, [str(item.message) for item in test.exception]
+          assert len(test.title) >= 1
+          print("Streamlit app rendered without exceptions")
+          PY
+
+  postman:
+    name: Newman executes complete API collection
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: python -m pip install fastapi uvicorn
+      - name: Start real local HTTP service
+        run: |
+          python -m uvicorn app:app --host 127.0.0.1 --port 8000 > /tmp/webhook-api.log 2>&1 &
+          echo $! > /tmp/webhook-api.pid
+          python - <<'PY'
+          import json
+          import time
+          from urllib.request import urlopen
+          for i in range(60):
+              try:
+                  with urlopen("http://127.0.0.1:8000/api/v1/health", timeout=2) as response:
+                      data = json.load(response)
+                  assert data["ok"]
+                  print("API ready")
+                  break
+              except Exception:
+                  time.sleep(1)
+          else:
+              raise RuntimeError("FastAPI failed to start")
+          PY
+      - name: Run every Postman assertion over HTTP
+        run: |
+          npx --yes newman@6 run postman/Webhook-Reliability-Lab.postman_collection.json             --environment postman/Local.postman_environment.json             --reporters cli,junit             --reporter-junit-export /tmp/webhook-lab-newman.xml             --timeout-request 10000
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: newman-report
+          path: /tmp/webhook-lab-newman.xml
+          if-no-files-found: ignore
+      - name: Show API output if failed
+        if: failure()
+        run: cat /tmp/webhook-api.log

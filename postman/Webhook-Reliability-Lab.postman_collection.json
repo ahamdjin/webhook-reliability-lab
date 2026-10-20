@@ -1,0 +1,744 @@
+{
+  "info": {
+    "name": "Webhook Reliability Lab — Starter Kit",
+    "_postman_id": "bf1793d8-d215-4d11-9fd0-d5fb2b0a1eb9",
+    "description": "# Webhook Reliability Lab\nA **real executable Postman starter kit** for an original, deterministic FastAPI demo: validation, deduplication, TTL, retry strategy and signature verification.\n\n**Start here:** run `python -m uvicorn app:app` in the GitHub repo (or deploy the API to Vercel), and set collection variable `base_url` to its address.\nNo API keys or authentication required for these synthetic-only endpoints. Do not send private data, customer records or real signing secrets.\n\nRun the whole collection to initialize `demo_signature` in order before verifying it. Failure cases are intentional and assert documented outcomes.\n\n**Critical:** This is educational static simulation, not a hosted production webhook receiver. Calls do not forward events, persist dedup keys or make outbound requests.\n\nCreator: [Ahmad Yar](https://www.ahmadyar.co/) · [GitHub project](https://github.com/ahamdjin/webhook-reliability-lab).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "noauth"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://127.0.0.1:8000",
+      "type": "string",
+      "description": "Change to deployed API URL when available, without trailing slash."
+    },
+    {
+      "key": "demo_signature",
+      "value": "",
+      "type": "string",
+      "description": "Set automatically by Generate PUBLIC demo signature request."
+    }
+  ],
+  "item": [
+    {
+      "name": "01 — Orientation",
+      "item": [
+        {
+          "name": "Health check",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/health",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "health"
+              ]
+            },
+            "description": "Start here: expected HTTP 200. This API is deliberately stateless and never forwards webhooks."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "const d=pm.response.json(); pm.test(\"Stateless and healthy\",()=>{pm.expect(d.ok).to.eql(true);pm.expect(d.mode).to.eql(\"stateless_no_network_no_storage\");});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Available synthetic scenarios",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/scenarios",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "scenarios"
+              ]
+            },
+            "description": "Predefined examples used by the Streamlit interface and Postman exercises."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "const d=pm.response.json(); pm.test(\"Scenario catalog\",()=>{pm.expect(d.scenarios).to.have.property(\"duplicate_delivery\");pm.expect(d.scenarios).to.have.property(\"expired_replay\");});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "02 — Contract validation",
+      "item": [
+        {
+          "name": "Accept valid fictional lead",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/validate",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "validate"
+              ]
+            },
+            "description": "Validates our documented four-field envelope; HTTP 200 reflects validation result, not an actual webhook acknowledgement.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"event\": {\n    \"event_id\": \"evt_lead_001\",\n    \"event_type\": \"lead.created\",\n    \"occurred_at\": \"2026-01-01T12:00:00Z\",\n    \"data\": {\n      \"lead_id\": \"lead_demo_001\",\n      \"source\": \"documentation\",\n      \"amount\": 125\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "const d=pm.response.json();pm.test(\"Envelope valid\",()=>{pm.expect(d.valid).to.eql(true);pm.expect(d.errors).to.be.an(\"array\").that.is.empty;});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reject missing ID and invalid time",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/validate",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "validate"
+              ]
+            },
+            "description": "The contract checker returns valid=false and rule IDs; expected HTTP 200 for inspection.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"event\": {\n    \"event_type\": \"lead.created\",\n    \"occurred_at\": \"2026-01-01T12:00:00\",\n    \"data\": {}\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "const d=pm.response.json();pm.test(\"Bad envelope identified\",()=>{pm.expect(d.valid).to.eql(false);pm.expect(d.errors.map(x=>x.code)).to.include(\"EVENT_ID\");pm.expect(d.errors.map(x=>x.code)).to.include(\"EVENT_TIME\");});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Malformed JSON returns 422",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/validate",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "validate"
+              ]
+            },
+            "description": "This deliberately malformed request produces a sanitised HTTP 422 rather than echoing input.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"event\":",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 422\", function () { pm.response.to.have.status(422); });",
+                  "const d=pm.response.json();pm.test(\"No private input reflected\",()=>{pm.expect(d.error).to.eql(\"invalid_request\");pm.expect(JSON.stringify(d)).not.to.include(\"event_id\");});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "03 — Idempotency and TTL",
+      "item": [
+        {
+          "name": "Three deliveries, one accepted",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/replay",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "replay"
+              ]
+            },
+            "description": "A duplicate is not an error to retry when the original was processed; sender and receiver idempotency must be designed together.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ttl_seconds\": 300,\n  \"deliveries\": [\n    {\n      \"at\": 0,\n      \"event\": {\n        \"event_id\": \"evt_lead_001\",\n        \"event_type\": \"lead.created\",\n        \"occurred_at\": \"2026-01-01T12:00:00Z\",\n        \"data\": {\n          \"lead_id\": \"lead_demo_001\",\n          \"source\": \"documentation\",\n          \"amount\": 125\n        }\n      }\n    },\n    {\n      \"at\": 2,\n      \"event\": {\n        \"event_id\": \"evt_lead_001\",\n        \"event_type\": \"lead.created\",\n        \"occurred_at\": \"2026-01-01T12:00:00Z\",\n        \"data\": {\n          \"lead_id\": \"lead_demo_001\",\n          \"source\": \"documentation\",\n          \"amount\": 125\n        }\n      }\n    },\n    {\n      \"at\": 8,\n      \"event\": {\n        \"event_id\": \"evt_lead_001\",\n        \"event_type\": \"lead.created\",\n        \"occurred_at\": \"2026-01-01T12:00:00Z\",\n        \"data\": {\n          \"lead_id\": \"lead_demo_001\",\n          \"source\": \"documentation\",\n          \"amount\": 125\n        }\n      }\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "const d=pm.response.json();pm.test(\"One accepted and two skipped\",()=>{pm.expect(d.summary.accepted).to.eql(1);pm.expect(d.summary.ignored_duplicate).to.eql(2);pm.expect(d.deliveries[1].rule).to.eql(\"ALREADY_PROCESSED\");});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Detect changed payload with same ID",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/replay",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "replay"
+              ]
+            },
+            "description": "Same ID and different canonical JSON is rejected within the TTL window.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ttl_seconds\": 300,\n  \"deliveries\": [\n    {\n      \"at\": 0,\n      \"event\": {\n        \"event_id\": \"evt_lead_001\",\n        \"event_type\": \"lead.created\",\n        \"occurred_at\": \"2026-01-01T12:00:00Z\",\n        \"data\": {\n          \"lead_id\": \"lead_demo_001\",\n          \"source\": \"documentation\",\n          \"amount\": 125\n        }\n      }\n    },\n    {\n      \"at\": 1,\n      \"event\": {\n        \"event_id\": \"evt_lead_001\",\n        \"event_type\": \"lead.created\",\n        \"occurred_at\": \"2026-01-01T12:00:00Z\",\n        \"data\": {\n          \"lead_id\": \"lead_demo_001\",\n          \"source\": \"documentation\",\n          \"amount\": 999\n        }\n      }\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "const d=pm.response.json();pm.test(\"Payload collision rejected\",()=>{pm.expect(d.summary.rejected_collision).to.eql(1);pm.expect(d.deliveries[1].rule).to.eql(\"SAME_ID_DIFFERENT_BODY\");});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Allow replay after expiry",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/replay",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "replay"
+              ]
+            },
+            "description": "At >= TTL the old key is expired; production retention must cover the provider's replay horizon.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ttl_seconds\": 5,\n  \"deliveries\": [\n    {\n      \"at\": 0,\n      \"event\": {\n        \"event_id\": \"evt_lead_001\",\n        \"event_type\": \"lead.created\",\n        \"occurred_at\": \"2026-01-01T12:00:00Z\",\n        \"data\": {\n          \"lead_id\": \"lead_demo_001\",\n          \"source\": \"documentation\",\n          \"amount\": 125\n        }\n      }\n    },\n    {\n      \"at\": 2,\n      \"event\": {\n        \"event_id\": \"evt_lead_001\",\n        \"event_type\": \"lead.created\",\n        \"occurred_at\": \"2026-01-01T12:00:00Z\",\n        \"data\": {\n          \"lead_id\": \"lead_demo_001\",\n          \"source\": \"documentation\",\n          \"amount\": 125\n        }\n      }\n    },\n    {\n      \"at\": 6,\n      \"event\": {\n        \"event_id\": \"evt_lead_001\",\n        \"event_type\": \"lead.created\",\n        \"occurred_at\": \"2026-01-01T12:00:00Z\",\n        \"data\": {\n          \"lead_id\": \"lead_demo_001\",\n          \"source\": \"documentation\",\n          \"amount\": 125\n        }\n      }\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "const d=pm.response.json();pm.test(\"TTL boundary matters\",()=>{pm.expect(d.summary.accepted).to.eql(2);pm.expect(d.summary.ignored_duplicate).to.eql(1);});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Ignore invalid event without reserving ID",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/replay",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "replay"
+              ]
+            },
+            "description": "Malformed deliveries should not consume idempotency keys.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ttl_seconds\": 300,\n  \"deliveries\": [\n    {\n      \"at\": 0,\n      \"event\": {\n        \"event_id\": \"invalid id\",\n        \"event_type\": \"lead.created\",\n        \"occurred_at\": \"2026-01-01T12:00:00Z\",\n        \"data\": {\n          \"lead_id\": \"lead_demo_001\",\n          \"source\": \"documentation\",\n          \"amount\": 125\n        }\n      }\n    },\n    {\n      \"at\": 1,\n      \"event\": {\n        \"event_id\": \"evt_lead_001\",\n        \"event_type\": \"lead.created\",\n        \"occurred_at\": \"2026-01-01T12:00:00Z\",\n        \"data\": {\n          \"lead_id\": \"lead_demo_001\",\n          \"source\": \"documentation\",\n          \"amount\": 125\n        }\n      }\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "const d=pm.response.json();pm.test(\"Invalid is rejected, valid follows\",()=>{pm.expect(d.summary.rejected_invalid).to.eql(1);pm.expect(d.summary.accepted).to.eql(1);});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "04 — Retry policies",
+      "item": [
+        {
+          "name": "503, 503 then 200",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/retry",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "retry"
+              ]
+            },
+            "description": "First retry waits 1s; next waits 2s; last response succeeds. Only a schedule is computed.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"statuses\": [\n    503,\n    503,\n    200\n  ],\n  \"base_seconds\": 1,\n  \"cap_seconds\": 60,\n  \"jitter\": 0,\n  \"seed\": 7\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "const d=pm.response.json();pm.test(\"Deterministic capped backoff\",()=>{pm.expect(d.total_wait_seconds).to.eql(3);pm.expect(d.final_outcome).to.eql(\"succeeded\");pm.expect(d.attempts.map(x=>x.at_seconds)).to.eql([0,1,3]);});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "400 fails without retry",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/retry",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "retry"
+              ]
+            },
+            "description": "Sending a broken request repeatedly does not help.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"statuses\": [\n    400,\n    200\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "const d=pm.response.json();pm.test(\"No retry on malformed input\",()=>{pm.expect(d.attempts.length).to.eql(1);pm.expect(d.final_outcome).to.eql(\"terminal_failure\");});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Respect Retry-After for 429",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/retry",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "retry"
+              ]
+            },
+            "description": "Rate limits: wait at least the indicated number of seconds, subject to configured maximum.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"statuses\": [\n    429,\n    200\n  ],\n  \"base_seconds\": 1,\n  \"cap_seconds\": 60,\n  \"jitter\": 0,\n  \"retry_after_seconds\": 10\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "const d=pm.response.json();pm.test(\"Backoff honors Retry-After\",()=>{pm.expect(d.total_wait_seconds).to.eql(10);pm.expect(d.final_outcome).to.eql(\"succeeded\");});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "05 — Signatures and replay windows",
+      "item": [
+        {
+          "name": "Generate PUBLIC demo signature",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/demo-sign",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "demo-sign"
+              ]
+            },
+            "description": "This uses a PUBLIC training key. It is not real provider authentication. Running this request initializes the demo_signature collection variable.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"payload\": \"{\\\"event_id\\\":\\\"evt_demo_001\\\"}\",\n  \"timestamp\": 1767268800\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "const d=pm.response.json();pm.test(\"SHA-256 demo signature\",()=>{pm.expect(d.signature).to.match(/^sha256=[0-9a-f]{64}$/);});pm.collectionVariables.set(\"demo_signature\",d.signature);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Verify sample signature",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/verify-sign",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "verify-sign"
+              ]
+            },
+            "description": "Run immediately after Generate PUBLIC demo signature, or use the Collection Runner. Exact raw payload bytes matter.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"payload\":\"{\\\"event_id\\\":\\\"evt_demo_001\\\"}\",\"timestamp\":1767268800,\"reference_time\":1767268800,\"signature\":\"{{demo_signature}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "const d=pm.response.json();pm.test(\"Matches canonical payload and timestamp\",()=>{pm.expect(d.valid).to.eql(true);pm.expect(d.signature_match).to.eql(true);});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reject timestamp outside tolerance",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/verify-sign",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "verify-sign"
+              ]
+            },
+            "description": "A signature remains mathematically correct but should fail outside allowed clock skew.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"payload\":\"{\\\"event_id\\\":\\\"evt_demo_001\\\"}\",\"timestamp\":1767268800,\"reference_time\":1767269800,\"tolerance_seconds\":300,\"signature\":\"{{demo_signature}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "const d=pm.response.json();pm.test(\"Reject replay outside window\",()=>{pm.expect(d.valid).to.eql(false);pm.expect(d.reason).to.eql(\"stale_or_future_timestamp\");});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

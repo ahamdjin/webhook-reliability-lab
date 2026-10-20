@@ -44,13 +44,30 @@ async def bound_request_body(request: Request, call_next):
     return response
 
 
+KNOWN_FIELDS = frozenset({
+    "body", "event", "deliveries", "ttl_seconds", "statuses", "base_seconds",
+    "cap_seconds", "jitter", "seed", "retry_after_seconds", "payload",
+    "timestamp", "signature", "reference_time", "tolerance_seconds",
+})
+
+
+def _safe_issue_location(parts):
+    # Pydantic extra-key locations can contain arbitrary user-supplied keys.
+    # Only documented request fields or array indexes may be reflected.
+    return ".".join(
+        str(part) if isinstance(part, int) else
+        part if isinstance(part, str) and part in KNOWN_FIELDS else "extra_field"
+        for part in parts
+    )
+
+
 @app.exception_handler(RequestValidationError)
 async def safe_validation_error(_request: Request, exc: RequestValidationError):
     # Do not echo values: Pydantic/FastAPI errors can include user-supplied input.
     return JSONResponse(status_code=422, content={
         "error": "invalid_request",
         "issues": [
-            {"field": ".".join(str(x) for x in item.get("loc", []) if isinstance(x, (str, int))),
+            {"field": _safe_issue_location(item.get("loc", [])),
              "code": item.get("type", "invalid")}
             for item in exc.errors()[:15]
         ],

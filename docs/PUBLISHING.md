@@ -2,6 +2,8 @@
 
 Both products use ONE GitHub repository: https://github.com/ahamdjin/webhook-reliability-lab .
 
+Current public app: https://webhook-reliability-lab.streamlit.app/ . API documentation: https://webhook-reliability-api.vercel.app/docs . Postman documentation: https://www.postman.com/cryosat-geoscientist-71511496-s-team/webhook-reliability-lab/documentation/41279717-bf96147e-42da-4eaf-bd4c-dd294fb5d585 .
+
 ## First verify and merge the PR
 
 Wait for GitHub Actions to pass Python 3.11 / 3.12 unit tests, Streamlit AppTest, and the complete Postman collection running over real local HTTP. Merge to main only after checks pass.
@@ -14,7 +16,7 @@ Wait for GitHub Actions to pass Python 3.11 / 3.12 unit tests, Streamlit AppTest
 4. Branch: main.
 5. Main file: streamlit_app.py.
 6. Deploy and test each tab with example data. Download one report. There are no secrets or environment variables to configure.
-7. Copy your *actual* verified public Streamlit URL into the README / portfolio.
+7. The maintainer's public app is https://webhook-reliability-lab.streamlit.app/ . Check all tabs and JSON report downloads after changes.
 
 ## HTTP playground endpoint for Postman
 
@@ -24,7 +26,7 @@ Wait for GitHub Actions to pass Python 3.11 / 3.12 unit tests, Streamlit AppTest
 4. Set the Postman base_url variable to the validated HTTPS origin, without trailing slash. Run all 15 Postman requests.
 5. Before sharing broadly, review Vercel Firewall/traffic protection, logs and hosting usage quotas. The educational API has no authentication and should not receive private data.
 
-This endpoint is independent from Streamlit. No hosted URL is claimed until the user has deployed it.
+This FastAPI endpoint is independent from the hosted Streamlit application and must never receive real secrets or private events.
 
 ## Postman API Network
 

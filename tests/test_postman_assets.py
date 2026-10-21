@@ -10,7 +10,7 @@ def test_postman_v21_schema_and_no_secrets():
     assert collection["info"]["schema"].endswith("/v2.1.0/collection.json")
     assert "www.ahmadyar.co" in collection["info"]["description"]
     assert collection["auth"]["type"] == "noauth"
-    assert next(v for v in collection["variable"] if v["key"] == "base_url")["value"] == "http://127.0.0.1:8000"
+    assert next(v for v in collection["variable"] if v["key"] == "base_url")["value"] == "https://webhook-reliability-api.vercel.app"
     assert len(collection["item"]) == 5
     requests = [req for folder in collection["item"] for req in folder["item"]]
     assert len(requests) >= 14

@@ -2,7 +2,7 @@
 
 **Understand webhook delivery before it breaks your automations.** A hands-on [Streamlit](https://streamlit.io/) app plus a ready-to-run [Postman](https://www.postman.com/) API collection, powered by the **same original Python reliability engine**.
 
-Made by **[Ahmad Yar](https://www.ahmadyar.co/)** · [Published Postman API documentation](https://www.postman.com/cryosat-geoscientist-71511496-s-team/webhook-reliability-lab/documentation/41279717-bf96147e-42da-4eaf-bd4c-dd294fb5d585) · [Live FastAPI docs](https://webhook-reliability-api.vercel.app/docs) · [GitHub source](https://github.com/ahamdjin/webhook-reliability-lab) · MIT licensed
+Made by **[Ahmad Yar](https://www.ahmadyar.co/)** · [Try interactive Streamlit lab](https://webhook-reliability-lab.streamlit.app/) · [Published Postman API documentation](https://www.postman.com/cryosat-geoscientist-71511496-s-team/webhook-reliability-lab/documentation/41279717-bf96147e-42da-4eaf-bd4c-dd294fb5d585) · [Live FastAPI docs](https://webhook-reliability-api.vercel.app/docs) · [GitHub source](https://github.com/ahamdjin/webhook-reliability-lab) · MIT licensed
 
 [![Test the Streamlit + Postman lab](https://github.com/ahamdjin/webhook-reliability-lab/actions/workflows/ci.yml/badge.svg)](https://github.com/ahamdjin/webhook-reliability-lab/actions/workflows/ci.yml)
 
@@ -24,14 +24,14 @@ Realistic caveats are built into the explanations: duplicate delivery is normal;
 
 ## Public links
 
+- **[Interactive Streamlit lab](https://webhook-reliability-lab.streamlit.app/)** — browser-based exercises for deduplication, validation, retries, and signatures; no account keys required.
 - **[Postman API Network documentation](https://www.postman.com/cryosat-geoscientist-71511496-s-team/webhook-reliability-lab/documentation/41279717-bf96147e-42da-4eaf-bd4c-dd294fb5d585)** — 15 runnable examples and assertions; shared by the maintainer.
 - **[FastAPI playground](https://webhook-reliability-api.vercel.app/docs)** — publicly deployed synthetic API.
 - **[API health](https://webhook-reliability-api.vercel.app/api/v1/health)** — availability endpoint.
-- **Streamlit app:** not yet hosted on Community Cloud; deployment instructions below.
 
 ## 1. Run the interactive Streamlit app
 
-From the project root:
+**[Open the hosted Streamlit lab](https://webhook-reliability-lab.streamlit.app/)** to try the exercises in your browser, or run it locally from the project root:
 
 ~~~bash
 python -m venv .venv
@@ -54,7 +54,7 @@ The interface opens in your browser. Select a preset, change delays and TTL, edi
 
 You do **not** need to configure secrets, environment variables or an endpoint.
 
-**No Streamlit URL is claimed until this deployment has actually completed.** Add the live URL to the README and portfolio after verification.
+**Hosted community app:** [webhook-reliability-lab.streamlit.app](https://webhook-reliability-lab.streamlit.app/). The deployment is independent of the FastAPI/Postman service; it runs simulations with the local Python engine.
 
 ## 2. Run the real demo API locally
 

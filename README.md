@@ -2,7 +2,7 @@
 
 **Understand webhook delivery before it breaks your automations.** A hands-on [Streamlit](https://streamlit.io/) app plus a ready-to-run [Postman](https://www.postman.com/) API collection, powered by the **same original Python reliability engine**.
 
-Made by **[Ahmad Yar](https://www.ahmadyar.co/)** · [GitHub source](https://github.com/ahamdjin/webhook-reliability-lab) · MIT licensed
+Made by **[Ahmad Yar](https://www.ahmadyar.co/)** · [Published Postman API documentation](https://www.postman.com/cryosat-geoscientist-71511496-s-team/webhook-reliability-lab/documentation/41279717-bf96147e-42da-4eaf-bd4c-dd294fb5d585) · [Live FastAPI docs](https://webhook-reliability-api.vercel.app/docs) · [GitHub source](https://github.com/ahamdjin/webhook-reliability-lab) · MIT licensed
 
 [![Test the Streamlit + Postman lab](https://github.com/ahamdjin/webhook-reliability-lab/actions/workflows/ci.yml/badge.svg)](https://github.com/ahamdjin/webhook-reliability-lab/actions/workflows/ci.yml)
 
@@ -21,6 +21,13 @@ Made by **[Ahmad Yar](https://www.ahmadyar.co/)** · [GitHub source](https://git
 | Postman tests | Run 15 documented HTTP requests | Check success, failure, dedup, TTL, backoff, and signatures |
 
 Realistic caveats are built into the explanations: duplicate delivery is normal; a valid signature alone does not prevent replays; deduplication across concurrent/regionally distributed workers requires a **shared atomic durable inbox**, not a Python dictionary.
+
+## Public links
+
+- **[Postman API Network documentation](https://www.postman.com/cryosat-geoscientist-71511496-s-team/webhook-reliability-lab/documentation/41279717-bf96147e-42da-4eaf-bd4c-dd294fb5d585)** — 15 runnable examples and assertions; shared by the maintainer.
+- **[FastAPI playground](https://webhook-reliability-api.vercel.app/docs)** — publicly deployed synthetic API.
+- **[API health](https://webhook-reliability-api.vercel.app/api/v1/health)** — availability endpoint.
+- **Streamlit app:** not yet hosted on Community Cloud; deployment instructions below.
 
 ## 1. Run the interactive Streamlit app
 
@@ -88,7 +95,7 @@ Import the **same repository** again as a separate Vercel project:
 4. Deploy, then visit \`https://YOUR-DEPLOYMENT.vercel.app/api/v1/health\` and \`.../docs\`.
 5. Put that **verified** HTTPS origin in the Postman collection's \`base_url\` variable.
 
-**Important:** a publicly accessible test API may be subject to traffic, misuse and hosting quotas. This project does not implement per-user rate limiting or authentication; configure appropriate Vercel Firewall / traffic controls if deployed publicly. Do not add real provider secrets or production workflows. No claimed public API URL is included until deployed.
+**Production demo currently deployed:** [webhook-reliability-api.vercel.app](https://webhook-reliability-api.vercel.app/docs). A publicly accessible test API may be subject to traffic, misuse and hosting quotas. This project does not implement per-user rate limiting or authentication; configure appropriate Vercel Firewall / traffic controls if deployed publicly. Do not add real provider secrets or production workflows.
 
 ## 3. Import into Postman and run tests
 
@@ -99,7 +106,7 @@ Download or import these repository files into [Postman](https://www.postman.com
 
 With FastAPI running, select the Local environment and open the collection's **Run** view. Run the whole collection in order. It checks expected successes and intentional failures, and sets the example \`demo_signature\` variable before verifying it.
 
-All requests point to \`{{base_url}}\`, which defaults to \`http://127.0.0.1:8000\`. Update this to the real deployed HTTPS API origin after Vercel is live. A Postman public collection pointing to \`127.0.0.1\` will **not** magically host an API for other people.
+All requests point to \`{{base_url}}\`. The **collection now defaults to \`https://webhook-reliability-api.vercel.app\`** so importing it works for visitors without local setup. The separate \`Local.postman_environment.json\` overrides this with \`http://127.0.0.1:8000\` for localhost development and CI. In Postman select **No environment** to use the public collection default.
 
 For local continuous integration with Newman (Postman Collection v2.1):
 
@@ -119,7 +126,7 @@ GitHub Actions runs the collection **against a freshly booted API process**, not
 5. Open workspace settings and change the workspace type to **Public**. Publish collection documentation if you also want a shareable public docs URL.
 6. Verify the published Postman collection by opening its URL in a logged-out browser and forking it.
 
-The Postman API Network publication step **cannot be completed by committing a JSON file to GitHub**. Keep the collection's published URL in this README and your portfolio once it actually exists.
+**Published documentation:** [Webhook Reliability Lab — Postman](https://www.postman.com/cryosat-geoscientist-71511496-s-team/webhook-reliability-lab/documentation/41279717-bf96147e-42da-4eaf-bd4c-dd294fb5d585). The collection's public workspace/docs publication is a Postman account action, separate from committing the exported JSON here.
 
 ## Design and learning boundaries
 

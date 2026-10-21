@@ -2,7 +2,7 @@
   "info": {
     "name": "Webhook Reliability Lab — Starter Kit",
     "_postman_id": "bf1793d8-d215-4d11-9fd0-d5fb2b0a1eb9",
-    "description": "# Webhook Reliability Lab\nA **real executable Postman starter kit** for an original, deterministic FastAPI demo: validation, deduplication, TTL, retry strategy and signature verification.\n\n**Start here:** run `python -m uvicorn app:app` in the GitHub repo (or deploy the API to Vercel), and set collection variable `base_url` to its address.\nNo API keys or authentication required for these synthetic-only endpoints. Do not send private data, customer records or real signing secrets.\n\nRun the whole collection to initialize `demo_signature` in order before verifying it. Failure cases are intentional and assert documented outcomes.\n\n**Critical:** This is educational static simulation, not a hosted production webhook receiver. Calls do not forward events, persist dedup keys or make outbound requests.\n\nCreator: [Ahmad Yar](https://www.ahmadyar.co/) · [GitHub project](https://github.com/ahamdjin/webhook-reliability-lab).",
+    "description": "# Webhook Reliability Lab\nA **real executable Postman starter kit** for an original, deterministic FastAPI demo: validation, deduplication, TTL, retry strategy and signature verification.\n\n**Start here:** run `python -m uvicorn app:app` in the GitHub repo (or deploy the API to Vercel), and set collection variable `base_url` to its address.\nNo API keys or authentication required for these synthetic-only endpoints. Do not send private data, customer records or real signing secrets.\n\nRun the whole collection to initialize `demo_signature` in order before verifying it. Failure cases are intentional and assert documented outcomes.\n\n**Critical:** This is educational static simulation, not a hosted production webhook receiver. Calls do not forward events, persist dedup keys or make outbound requests.\n\nCreator: [Ahmad Yar](https://www.ahmadyar.co/) · [GitHub project](https://github.com/ahamdjin/webhook-reliability-lab).\n\n**Public Postman documentation:** https://www.postman.com/cryosat-geoscientist-71511496-s-team/webhook-reliability-lab/documentation/41279717-bf96147e-42da-4eaf-bd4c-dd294fb5d585\n**Live demo FastAPI:** https://webhook-reliability-api.vercel.app/docs",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -11,9 +11,9 @@
   "variable": [
     {
       "key": "base_url",
-      "value": "http://127.0.0.1:8000",
+      "value": "https://webhook-reliability-api.vercel.app",
       "type": "string",
-      "description": "Change to deployed API URL when available, without trailing slash."
+      "description": "Published public demo API URL. The importable Local environment overrides it for local testing and CI."
     },
     {
       "key": "demo_signature",
